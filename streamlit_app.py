@@ -1,12 +1,9 @@
 import streamlit as st
-import yfinance as yf
 import pandas as pd
+import yfinance as yf
 
-# ... (bagian UI slider sebelumnya) ...
-
-if st.button("🚀 Scan Sekarang"):
-    # Contoh list saham (nantinya bisa diambil dari file upload)
-    stock_list = ["AADI.JK", "AALI.JK", "ABBA.JK", "ABDA.JK", "ABMM.JK", "ACES.JK", "ACRO.JK", "ACST.JK",
+# Mengambil data saham BCA
+ticker = ["AADI.JK", "AALI.JK", "ABBA.JK", "ABDA.JK", "ABMM.JK", "ACES.JK", "ACRO.JK", "ACST.JK",
     "ADCP.JK", "ADES.JK", "ADHI.JK", "ADMF.JK", "ADMG.JK", "ADMR.JK", "ADRO.JK", "AEGS.JK",
     "AGAR.JK", "AGII.JK", "AGRO.JK", "AGRS.JK", "AHAP.JK", "AIMS.JK", "AISA.JK", "AKKU.JK",
     "AKPI.JK", "AKRA.JK", "AKSI.JK", "ALDO.JK", "ALII.JK", "ALKA.JK", "ALMI.JK", "ALTO.JK",
@@ -126,34 +123,53 @@ if st.button("🚀 Scan Sekarang"):
     "WINE.JK", "WINR.JK", "WINS.JK", "WIRG.JK", "WMPP.JK", "WMUU.JK", "WOMF.JK", "WOOD.JK",
     "WOWS.JK", "WSBP.JK", "WSKT.JK", "WTON.JK", "YELO.JK", "YOII.JK", "YPAS.JK", "YULE.JK",
     "YUPI.JK", "ZATA.JK", "ZBRA.JK", "ZINC.JK"]
-    
-    results = []
-    
-    st.write("Sedang mengambil data dari Yahoo Finance...")
-    
-    for symbol in stock_list:
-        df = yf.download(symbol, period="200d", interval="1d", progress=False)
-        
-        if not df.empty:
-            # Hitung SMA 20 dan SMA 200
-            df['SMA20'] = df['Close'].rolling(window=20).mean()
-            df['SMA200'] = df['Close'].rolling(window=200).mean()
-            
-            last_price = df['Close'].iloc[-1]
-            last_sma20 = df['SMA20'].iloc[-1]
-            last_sma200 = df['SMA200'].iloc[-1]
-            
-            # Filter: Harga > SMA 20 & SMA 200
-            if last_price > last_sma20 and last_price > last_sma200:
-                results.append({
-                    "Ticker": symbol,
-                    "Price": last_price,
-                    "SMA20": last_sma20,
-                    "SMA200": last_sma200
-                })
+data = yf.download(ticker, period="1y", interval="1d")
 
-    if results:
-        st.success(f"Ditemukan {len(results)} saham yang sesuai kriteria!")
-        st.table(pd.DataFrame(results))
+# Menampilkan 5 data terakhir
+print(data.tail())
+# Konfigurasi Halaman
+st.set_page_config(page_title="IDX Swing Screener", layout="wide")
+
+# Judul dan Deskripsi
+st.title("🔥 IDX Swing Screener Real-Time by jamilstempel.com")
+st.markdown("""
+Screener swing trading fokus momentum, uptrend, & volume.  
+Data **real-time/delayed** dari API RTA. Scan malam hari untuk closing akurat.
+""")
+
+# File Uploader
+st.markdown("---")
+uploaded_file = st.file_uploader(
+    "Upload Daftar Saham Excel dari IDX (kolom A 'No' kolom B 'Kode' kolom selanjutnya hapus)", 
+    type=["xlsx"]
+)
+
+st.info("IDX List (Scan Now). Upload Excel untuk full scan.")
+
+# Bagian Slider Input
+st.markdown("### Super Agresif 🔥 : RSI: 50.00, Min Volume: 3.0, % Change 1 bulan: 15, Market Cap: 1.5 dan 5 T.")
+
+# Membuat 2 Kolom untuk Slider
+col1, col2 = st.columns(2)
+
+with col1:
+    rsi_val = st.slider("Min RSI (14)", 0.0, 100.0, 50.0)
+    vol_val = st.slider("Min Volume Today vs Avg 20 hari (x)", 0.0, 10.0, 3.0)
+
+with col2:
+    pct_change = st.slider("Min % Change 1 Bulan", 0.0, 100.0, 15.0)
+    market_cap = st.slider("Min Market Cap (Triliun Rp)", 0.0, 100.0, 1.5)
+
+st.markdown("**✓ Filter wajib: Harga > SMA 20 & SMA 200**")
+
+# Tombol Scan
+if st.button("🚀 Scan Sekarang"):
+    if uploaded_file is not None:
+        st.write("Sedang memproses data...")
+        # Di sini tempat kamu memasukkan logika screening datamu
     else:
-        st.warning("Tidak ada saham yang memenuhi kriteria saat ini.")
+        st.warning("Silakan upload file Excel terlebih dahulu atau gunakan data default.")
+
+# Footer/Status
+st.markdown("---")
+st.caption("Malam 20 Jan 2026 – data closing akurat sekarang. Refresh untuk update.")

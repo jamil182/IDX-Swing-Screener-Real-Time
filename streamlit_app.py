@@ -1,46 +1,12 @@
 import streamlit as st
+import yfinance as yf
 import pandas as pd
 
+# ... (bagian UI slider sebelumnya) ...
 
-st.set_page_config(page_title="IDX Swing Screener Real-Time", layout="wide")
-st.title("🔥 IDX Swing Screener Real-Time by jamilstempel.com")
-st.markdown("""
-Screener swing trading fokus momentum, uptrend, & volume.  
-Data **real-time/delayed** dari API RTA. Scan malam hari untuk closing akurat.
-
-""")
-uploaded_file = st.file_uploader("Upload Daftar Saham Excel dari IDX (kolom A 'No' kolom B 'Kode' kolom selanjutnya hapus)", type=["xlsx"])
-
-if uploaded_file:
-    try:
-        # Coba baca tanpa skip row dulu (cocok untuk file Anda yang header di row 1)
-        df_list = pd.read_excel(uploaded_file)
-        if "Kode" not in df_list.columns:
-            raise KeyError
-        tickers = [str(kode).strip() + ".JK" for kode in df_list["Kode"] if str(kode).strip() != "nan"]
-        st.success(f"Berhasil load {len(tickers)} saham! (header row 1)")
-        
-    except:
-        try:
-            # Jika gagal, coba skip 1-3 row (untuk file resmi IDX yang sering ada title di atas)
-            for skip in [1, 2, 3]:
-                df_list = pd.read_excel(uploaded_file, skiprows=skip)
-                # Cari kolom yang mirip "Kode"
-                kode_col = None
-                for col in df_list.columns:
-                    if "kode" in str(col).lower():
-                        kode_col = col
-                        break
-                if kode_col:
-                    df_list = df_list.rename(columns={kode_col: "Kode"})
-                    break
-            tickers = [str(kode).strip() + ".JK" for kode in df_list["Kode"] if str(kode).strip() != "nan"]
-            st.success(f"Berhasil load {len(tickers)} saham! (auto-detect format IDX)")
-        except Exception as e:
-            st.error(f"Error baca file: {e}. Pastikan ada kolom 'Kode' atau mirip.")
-            tickers = []
-else:
-    tickers = ["AADI.JK", "AALI.JK", "ABBA.JK", "ABDA.JK", "ABMM.JK", "ACES.JK", "ACRO.JK", "ACST.JK",
+if st.button("🚀 Scan Sekarang"):
+    # Contoh list saham (nantinya bisa diambil dari file upload)
+    stock_list = ["AADI.JK", "AALI.JK", "ABBA.JK", "ABDA.JK", "ABMM.JK", "ACES.JK", "ACRO.JK", "ACST.JK",
     "ADCP.JK", "ADES.JK", "ADHI.JK", "ADMF.JK", "ADMG.JK", "ADMR.JK", "ADRO.JK", "AEGS.JK",
     "AGAR.JK", "AGII.JK", "AGRO.JK", "AGRS.JK", "AHAP.JK", "AIMS.JK", "AISA.JK", "AKKU.JK",
     "AKPI.JK", "AKRA.JK", "AKSI.JK", "ALDO.JK", "ALII.JK", "ALKA.JK", "ALMI.JK", "ALTO.JK",
@@ -160,69 +126,34 @@ else:
     "WINE.JK", "WINR.JK", "WINS.JK", "WIRG.JK", "WMPP.JK", "WMUU.JK", "WOMF.JK", "WOOD.JK",
     "WOWS.JK", "WSBP.JK", "WSKT.JK", "WTON.JK", "YELO.JK", "YOII.JK", "YPAS.JK", "YULE.JK",
     "YUPI.JK", "ZATA.JK", "ZBRA.JK", "ZINC.JK"]
-    st.info("IDX List (Scan Now). Upload Excel untuk full scan.")
-st.markdown("""
-Super Agresif 🔥 : RSI: 50.00, Min Volume: 3.0, % Change 1 bulan: 15, Market Cap: 1.5 dan 5 T.
-(kalau Anda suka saham gorengan/viral mingguan, risk tinggi).
-""")
-
-col1, col2 = st.columns(2)
-with col1:
-    min_rsi = st.slider("Min RSI (14)", 0.0, 100.0, 50.0, 0.5)
-    min_vol_ratio = st.slider("Min Volume Today vs Avg 20 hari (x)", 0.5, 10.0, 3.0, 0.1)
-with col2:
-    min_change = st.slider("Min % Change 1 Bulan", -20.0, 50.0, 15.0, 0.5)
-    min_cap = st.slider("Min Market Cap (Triliun Rp)", 0.0, 1000.0, 1.5, 1.0)
-
-st.markdown("**✔ Filter wajib: Harga > SMA 20 & SMA 200**")
-
-if st.button("🚀 Scan Sekarang"):
+    
     results = []
-    progress = st.progress(0)
-    for i, ticker in enumerate(tickers):
-        try:
-            stock = yf.Ticker(ticker)
-            hist = stock.history(period="1y")
-            if len(hist) < 200: continue
-
-            close = hist['Close']
-            current_price = close.iloc[-1]
-            sma20 = close.rolling(20).mean().iloc[-1]
-            sma200 = close.rolling(200).mean().iloc[-1]
-            if current_price <= sma20 or current_price <= sma200: continue
-
-            rsi = RSIIndicator(close, 14).rsi().iloc[-1]
-            if rsi < min_rsi: continue
-
-            vol_today = hist['Volume'].iloc[-1]
-            vol_avg20 = hist['Volume'].rolling(20).mean().iloc[-1]
-            vol_ratio = vol_today / vol_avg20 if vol_avg20 > 0 else 0
-            if vol_ratio < min_vol_ratio: continue
-
-            change_1m = (close.iloc[-1] / close.iloc[-21] - 1) * 100 if len(close) >= 21 else 0
-            if change_1m < min_change: continue
-
-            market_cap = stock.info.get('marketCap', 0) / 1e12
-            if market_cap < min_cap: continue
-
-            results.append({
-                "Kode": ticker.replace(".JK", ""),
-                "Nama": stock.info.get('longName', ticker),
-                "Harga": round(current_price, 2),
-                "RSI": round(rsi, 2),
-                "Vol Ratio": round(vol_ratio, 2),
-                "% 1B": round(change_1m, 2),
-                "Cap (T)": round(market_cap, 2)
-            })
-        except: pass
-        progress.progress((i + 1) / len(tickers))
+    
+    st.write("Sedang mengambil data dari Yahoo Finance...")
+    
+    for symbol in stock_list:
+        df = yf.download(symbol, period="200d", interval="1d", progress=False)
+        
+        if not df.empty:
+            # Hitung SMA 20 dan SMA 200
+            df['SMA20'] = df['Close'].rolling(window=20).mean()
+            df['SMA200'] = df['Close'].rolling(window=200).mean()
+            
+            last_price = df['Close'].iloc[-1]
+            last_sma20 = df['SMA20'].iloc[-1]
+            last_sma200 = df['SMA200'].iloc[-1]
+            
+            # Filter: Harga > SMA 20 & SMA 200
+            if last_price > last_sma20 and last_price > last_sma200:
+                results.append({
+                    "Ticker": symbol,
+                    "Price": last_price,
+                    "SMA20": last_sma20,
+                    "SMA200": last_sma200
+                })
 
     if results:
-        df = pd.DataFrame(results).sort_values("Vol Ratio", ascending=False)
-        st.success(f"{len(df)} saham lolos!")
-        st.dataframe(df, use_container_width=True)
-        st.download_button("Download CSV", df.to_csv(index=False), "hasil_scan.csv")
+        st.success(f"Ditemukan {len(results)} saham yang sesuai kriteria!")
+        st.table(pd.DataFrame(results))
     else:
-        st.warning("Tidak ada yang lolos.")
-
-st.caption("Jan 2026 – data closing akurat sekarang. Refresh untuk update.")
+        st.warning("Tidak ada saham yang memenuhi kriteria saat ini.")

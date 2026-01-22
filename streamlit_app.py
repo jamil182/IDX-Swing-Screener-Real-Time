@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import yfinance as yf
+import pandas_ta as ta
 
 # Mengambil data saham BCA
 ticker = "BBCA.JK"
@@ -25,6 +26,16 @@ uploaded_file = st.file_uploader(
     type=["xlsx"]
 )
 
+# Di dalam loop data saham:
+df['RSI'] = df.ta.rsi(length=14)
+df['SMA20'] = df.ta.sma(length=20)
+df['SMA200'] = df.ta.sma(length=200)
+
+# Contoh perbaikan dalam loop
+for kode_asal in daftar_saham:
+    ticker = f"{kode_asal}.JK"  # Menambahkan .JK secara otomatis
+    data = yf.download(ticker, period="1y", interval="1d", progress=False)
+    
 st.info("IDX List (Scan Now). Upload Excel untuk full scan.")
 
 # Bagian Slider Input
@@ -54,3 +65,39 @@ if st.button("🚀 Scan Sekarang"):
 # Footer/Status
 st.markdown("---")
 st.caption("Malam 20 Jan 2026 – data closing akurat sekarang. Refresh untuk update.")
+
+# Simpan hasil scan dalam list
+hasil_scan = []
+
+# ... proses download data ...
+
+# Cek apakah data cukup untuk SMA200
+if len(df) > 200:
+    last_row = df.iloc[-1]
+    vol_ratio = last_row['Volume'] / df['Volume'].rolling(20).mean().iloc[-1]
+    
+    # Syarat Filter (Sesuaikan dengan slider)
+    if (last_row['RSI'] >= rsi_val and 
+        vol_ratio >= vol_val and 
+        last_row['Close'] > last_row['SMA20'] and 
+        last_row['Close'] > last_row['SMA200']):
+        
+        hasil_scan.append({
+            "Kode": kode_asal,
+            "Harga": last_row['Close'],
+            "RSI": round(last_row['RSI'], 2),
+            "Vol Ratio": round(vol_ratio, 2),
+            # Tambahkan kolom lainnya...
+        })
+
+# Tampilkan Tabel
+if hasil_scan:
+    st.success(f"{len(hasil_scan)} saham lolos!")
+    df_final = pd.DataFrame(hasil_scan)
+    st.dataframe(df_final) # Ini akan memunculkan tabel seperti di gambar
+    
+    # Tombol Download CSV
+    csv = df_final.to_csv(index=False).encode('utf-8')
+    st.download_button("Download CSV", data=csv, file_name="hasil_scan.csv")
+else:
+    st.warning("Tidak ada yang lolos.")

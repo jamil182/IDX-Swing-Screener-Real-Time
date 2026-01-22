@@ -1,6 +1,7 @@
 streamlit
-pandas
 yfinance
+pandas
+pandas_ta
 openpyxl
 
 

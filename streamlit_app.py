@@ -1,9 +1,7 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-from ta.trend import SMAIndicator
-from ta.momentum import RSIIndicator
-import numpy as np
+
 
 st.set_page_config(page_title="IDX Swing Screener Real-Time", layout="wide")
 st.title("🔥 IDX Swing Screener Real-Time by jamilstempel.com")

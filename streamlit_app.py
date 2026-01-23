@@ -4,12 +4,6 @@ import yfinance as yf
 import pandas_ta as ta
 import time
 
-# Mengambil data saham BCA
-ticker = "BBCA.JK"
-data = yf.download(ticker, period="1y", interval="1d")
-
-# Menampilkan 5 data terakhir
-print(data.tail())
 # Konfigurasi Halaman
 st.set_page_config(page_title="IDX Swing Screener", layout="wide")
 
@@ -17,151 +11,148 @@ st.set_page_config(page_title="IDX Swing Screener", layout="wide")
 st.title("🔥 IDX Swing Screener Real-Time by jamilstempel.com")
 st.markdown("""
 Screener swing trading fokus momentum, uptrend, & volume.  
-Data **real-time/delayed** dari API RTA. Scan malam hari untuk closing akurat.
+Data **delayed** dari yfinance (real-time tidak tersedia gratis untuk IDX).  
+Scan malam hari untuk closing paling akurat.
 """)
 
-# File Uploader
 st.markdown("---")
+
+# File Uploader
 uploaded_file = st.file_uploader(
-    "Upload Daftar Saham Excel dari IDX (kolom A 'No' kolom B 'Kode' kolom selanjutnya hapus)", 
+    "Upload Daftar Saham Excel dari IDX (kolom A 'No', kolom B 'Kode', kolom lain hapus)",
     type=["xlsx"]
 )
 
-# Di dalam loop data saham:
-df['RSI'] = df.ta.rsi(length=14)
-df['SMA20'] = df.ta.sma(length=20)
-df['SMA200'] = df.ta.sma(length=200)
+# Default list jika belum upload
+default_stocks = ["ASGR", "LPCK", "GOLF", "UANG", "MLPL", "ELSA", "BBCA", "BBRI", "BMRI", "TLKM"]
 
-# Contoh perbaikan dalam loop
-for kode_asal in daftar_saham:
-    ticker = f"{kode_asal}.JK"  # Menambahkan .JK secara otomatis
-    data = yf.download(ticker, period="1y", interval="1d", progress=False)
-    
-st.info("IDX List (Scan Now). Upload Excel untuk full scan.")
-
-# Bagian Slider Input
-st.markdown("### Super Agresif 🔥 : RSI: 50.00, Min Volume: 3.0, % Change 1 bulan: 15, Market Cap: 1.5 dan 5 T.")
-
-# Membuat 2 Kolom untuk Slider
-col1, col2 = st.columns(2)
-
-with col1:
-    rsi_val = st.slider("Min RSI (14)", 0.0, 100.0, 50.0)
-    vol_val = st.slider("Min Volume Today vs Avg 20 hari (x)", 0.0, 10.0, 3.0)
-
-with col2:
-    pct_change = st.slider("Min % Change 1 Bulan", 0.0, 100.0, 15.0)
-    market_cap = st.slider("Min Market Cap (Triliun Rp)", 0.0, 100.0, 1.5)
-
-st.markdown("**✓ Filter wajib: Harga > SMA 20 & SMA 200**")
-
-# Tombol Scan
-if st.button("🚀 Scan Sekarang"):
-    if uploaded_file is not None:
-        st.write("Sedang memproses data...")
-        # Di sini tempat kamu memasukkan logika screening datamu
-    else:
-        st.warning("Silakan upload file Excel terlebih dahulu atau gunakan data default.")
-
-# Footer/Status
-st.markdown("---")
-st.caption("Malam 20 Jan 2026 – data closing akurat sekarang. Refresh untuk update.")
-
-# Simpan hasil scan dalam list
-hasil_scan = []
-
-# ... proses download data ...
-
-# Cek apakah data cukup untuk SMA200
-if len(df) > 200:
-    last_row = df.iloc[-1]
-    vol_ratio = last_row['Volume'] / df['Volume'].rolling(20).mean().iloc[-1]
-    
-    # Syarat Filter (Sesuaikan dengan slider)
-    if (last_row['RSI'] >= rsi_val and 
-        vol_ratio >= vol_val and 
-        last_row['Close'] > last_row['SMA20'] and 
-        last_row['Close'] > last_row['SMA200']):
-        
-        hasil_scan.append({
-            "Kode": kode_asal,
-            "Harga": last_row['Close'],
-            "RSI": round(last_row['RSI'], 2),
-            "Vol Ratio": round(vol_ratio, 2),
-            # Tambahkan kolom lainnya...
-        })
-
-# Tampilkan Tabel
-if hasil_scan:
-    st.success(f"{len(hasil_scan)} saham lolos!")
-    df_final = pd.DataFrame(hasil_scan)
-    st.dataframe(df_final) # Ini akan memunculkan tabel seperti di gambar
-    
-    # Tombol Download CSV
-    csv = df_final.to_csv(index=False).encode('utf-8')
-    st.download_button("Download CSV", data=csv, file_name="hasil_scan.csv")
+if uploaded_file is not None:
+    try:
+        df_upload = pd.read_excel(uploaded_file, header=None)
+        # Ambil kolom B (index 1), skip baris kosong, mulai dari baris data (biasanya baris 2 jika ada header)
+        daftar_saham = df_upload.iloc[1:, 1].dropna().astype(str).str.strip().tolist()
+        if not daftar_saham:
+            st.error("File Excel tidak berisi kode saham yang valid di kolom B.")
+            daftar_saham = default_stocks
+        else:
+            st.success(f"Berhasil load {len(daftar_saham)} saham dari file.")
+    except Exception as e:
+        st.error(f"Error membaca file: {e}")
+        daftar_saham = default_stocks
 else:
-    st.warning("Tidak ada yang lolos.")
+    daftar_saham = default_stocks
+    st.info(f"Menggunakan daftar default ({len(daftar_saham)} saham). Upload Excel untuk full scan IDX.")
 
-# --- Judul & UI (Sesuai Gambar Sebelumnya) ---
-st.title("🔥 IDX Swing Screener Real-Time")
+# Slider Filter
+st.markdown("### 🔧 Pengaturan Filter")
+st.markdown("**Super Agresif 🔥 contoh:** RSI ≥ 50, Vol Ratio ≥ 3.0x, % 1 Bulan ≥ 15%, Market Cap ≥ 1.5 T")
 
-# ... (bagian slider rsi, vol, dll diletakkan di sini) ...
+col1, col2 = st.columns(2)
+with col1:
+    rsi_val = st.slider("Min RSI (14)", 0.0, 100.0, 50.0, step=0.5)
+    vol_val = st.slider("Min Volume Today vs Avg 20 hari (x)", 0.0, 10.0, 3.0, step=0.1)
+with col2:
+    pct_change_val = st.slider("Min % Change 1 Bulan", -50.0, 100.0, 15.0, step=0.5)
+    market_cap_val = st.slider("Min Market Cap (Triliun Rp)", 0.0, 500.0, 1.5, step=0.1)
+
+st.markdown("**✓ Filter wajib:** Harga > SMA20 > SMA200 (uptrend)")
 
 # Tombol Scan
 if st.button("🚀 Scan Sekarang"):
-    # 1. Inisialisasi Progress Bar (Loading Scene)
-    # Ini yang menciptakan garis biru berjalan seperti di gambar 28
-    progress_text = "Sedang memindai pasar saham IDX. Harap tunggu..."
-    my_bar = st.progress(0, text=progress_text)
-    
-    # Contoh daftar saham (ganti dengan pembacaan Excel kamu)
-    stock_list = ["ASGR.JK", "LPCK.JK", "GOLF.JK", "UANG.JK", "MLPL.JK", "ELSA.JK"]
-    total_stocks = len(stock_list)
-    results = []
-
-    # 2. Proses Scanning dengan Update Progress
-    for i, ticker in enumerate(stock_list):
-        # Update progress bar (0.0 sampai 1.0)
-        progress_val = (i + 1) / total_stocks
-        my_bar.progress(progress_val, text=f"Memproses {ticker} ({i+1}/{total_stocks})")
-        
-        try:
-            # Ambil data dari yfinance
-            df = yf.download(ticker, period="1y", interval="1d", progress=False)
-            
-            if not df.empty and len(df) > 200:
-                # Contoh Logika Sederhana (sesuaikan dengan filter slider)
-                last_price = df['Close'].iloc[-1]
-                # (Tambahkan hitungan RSI & SMA di sini)
-                
-                # Masukkan ke list jika lolos filter
-                results.append({
-                    "Kode": ticker.replace(".JK", ""),
-                    "Harga": round(last_price, 0),
-                    "RSI": 75.5, # Contoh nilai statis
-                    "Vol Ratio": 5.2, # Contoh nilai statis
-                    "% 1B": "20.5%",
-                    "Cap (T)": 4.5
-                })
-        except Exception as e:
-            continue
-
-    # 3. Hilangkan Progress Bar setelah selesai
-    time.sleep(0.5)
-    my_bar.empty()
-
-    # 4. Tampilkan Hasil (Seperti Screenshot 27)
-    if results:
-        st.success(f"{len(results)} saham lolos!")
-        df_final = pd.DataFrame(results)
-        
-        # Menampilkan Tabel
-        st.dataframe(df_final, use_container_width=True)
-        
-        # Tombol Download
-        csv = df_final.to_csv(index=False).encode('utf-8')
-        st.download_button("Download CSV", data=csv, file_name="hasil_scan.csv")
+    if not daftar_saham:
+        st.warning("Tidak ada daftar saham untuk discan.")
     else:
-        # Tampilan jika tidak ada yang lolos 
-        st.warning("Tidak ada yang lolos.")
+        st.write("Sedang memproses data...")
+        progress_text = "Sedang memindai pasar saham IDX. Harap tunggu..."
+        my_bar = st.progress(0, text=progress_text)
+
+        total_stocks = len(daftar_saham)
+        results = []
+
+        for i, kode in enumerate(daftar_saham):
+            ticker = f"{kode}.JK"
+            progress_val = (i + 1) / total_stocks
+            my_bar.progress(progress_val, text=f"Memproses {kode} ({i+1}/{total_stocks})")
+
+            try:
+                # Download data 1 tahun
+                df = yf.download(ticker, period="1y", interval="1d", progress=False)
+
+                if df.empty or len(df) < 200:
+                    continue
+
+                # Hitung indikator
+                df["RSI"] = ta.rsi(df["Close"], length=14)
+                df["SMA20"] = ta.sma(df["Close"], length=20)
+                df["SMA200"] = ta.sma(df["Close"], length=200)
+
+                last = df.iloc[-1]
+
+                # Skip jika indikator NaN
+                if pd.isna(last["RSI"]) or pd.isna(last["SMA20"]) or pd.isna(last["SMA200"]):
+                    continue
+
+                close = last["Close"]
+                rsi = last["RSI"]
+                sma20 = last["SMA20"]
+                sma200 = last["SMA200"]
+                vol_today = last["Volume"]
+                avg_vol_20 = df["Volume"].rolling(20).mean().iloc[-1]
+                vol_ratio = vol_today / avg_vol_20 if avg_vol_20 > 0 else 0
+
+                # % Change 1 bulan (approx 21 hari perdagangan)
+                if len(df) >= 22:
+                    pct_1m = df["Close"].pct_change(periods=21).iloc[-1] * 100
+                else:
+                    pct_1m = 0
+
+                # Market Cap (Triliun Rp)
+                ticker_obj = yf.Ticker(ticker)
+                mc_trillion = ticker_obj.info.get("marketCap", 0) / 1_000_000_000_000
+
+                # Filter
+                if (close > sma20 > sma200 and
+                    rsi >= rsi_val and
+                    vol_ratio >= vol_val and
+                    pct_1m >= pct_change_val and
+                    mc_trillion >= market_cap_val):
+
+                    results.append({
+                        "Kode": kode,
+                        "Harga": round(close),
+                        "RSI": round(rsi, 2),
+                        "Vol Ratio": round(vol_ratio, 2),
+                        "% 1B": f"{pct_1m:.1f}%",
+                        "Cap (T)": round(mc_trillion, 1)
+                    })
+
+                # Delay kecil agar tidak kena rate limit yfinance
+                time.sleep(0.2)
+
+            except Exception:
+                continue
+
+        # Selesai scanning
+        time.sleep(0.5)
+        my_bar.empty()
+
+        # Tampilkan hasil
+        if results:
+            st.success(f"🎉 {len(results)} saham lolos filter!")
+            df_final = pd.DataFrame(results)
+            st.dataframe(df_final, use_container_width=True)
+
+            # Download CSV
+            csv = df_final.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                label="📥 Download CSV",
+                data=csv,
+                file_name="idx_swing_scan.csv",
+                mime="text/csv"
+            )
+        else:
+            st.warning("Tidak ada saham yang lolos filter saat ini.")
+
+# Footer
+st.markdown("---")
+st.caption("Data dari yfinance • Update real-time saat scan • Dibuat oleh jamilstempel.com • 23 Jan 2026")

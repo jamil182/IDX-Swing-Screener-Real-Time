@@ -46,9 +46,9 @@ uploaded_file = st.sidebar.file_uploader("Upload Excel IDX (Kolom B: Kode)", typ
 
 # Filter Sliders
 rsi_min = st.sidebar.slider("Min RSI (14)", 0, 100, 50)
-vol_ratio_min = st.sidebar.slider("Min Vol Ratio", 0.0, 5.0, 1.2, 0.1)
+vol_ratio_min = st.sidebar.slider("Min Vol Ratio", 0.0, 5.0, 3.0, 0.1)
 mcap_min = st.sidebar.number_input("Min Market Cap (Triliun IDR)", 0.0, 2000.0, 1.0)
-pct_1m_min = st.sidebar.slider("Min % Change (1 Bulan)", -30, 100, 0)
+pct_1m_min = st.sidebar.slider("Min % Change (1 Bulan)", -30, 100, 15.0)
 
 st.sidebar.divider()
 st.sidebar.header("💰 Money Management")

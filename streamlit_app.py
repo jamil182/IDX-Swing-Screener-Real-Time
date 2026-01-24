@@ -182,13 +182,13 @@ results.append({
             }
         )
         st.dataframe(
-    df_res, 
-        use_container_width=True,
-        column_config={
-        "Stop Loss (SL)": st.column_config.NumberColumn("Exit (SL)", format="Rp %d", help="Jual jika harga di bawah ini"),
-        "Target Profit (TP)": st.column_config.NumberColumn("Target (TP)", format="Rp %d", help="Area ambil untung"),
-        "Potensi Profit": st.column_config.TextColumn("Potensi Untung", help="Estimasi % kenaikan"),
-        "Price": st.column_config.NumberColumn("Harga Masuk", format="Rp %d")
+            df_res, 
+            use_container_width=True,
+            column_config={
+            "Stop Loss (SL)": st.column_config.NumberColumn("Exit (SL)", format="Rp %d", help="Jual jika harga di bawah ini"),
+           "Target Profit (TP)": st.column_config.NumberColumn("Target (TP)", format="Rp %d", help="Area ambil untung"),
+           "Potensi Profit": st.column_config.TextColumn("Potensi Untung", help="Estimasi % kenaikan"),
+          "Price": st.column_config.NumberColumn("Harga Masuk", format="Rp %d")
             }
         )
         # Export

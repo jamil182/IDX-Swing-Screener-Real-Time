@@ -122,33 +122,14 @@ if st.button("🔍 Mulai Pemindaian Massal"):
                     mcap >= mcap_min and
                     pct_1m >= pct_1m_min):
                     
-                    # --- LOGIKA RISK MANAGEMENT ---
-                    # Stop Loss di SMA20 atau maksimal -5% dari harga sekarang
-     sl_price = sma20 * 0.98  # Memberi 'napas' 2% di bawah garis SMA20
-     risk_pct = ((price - sl_price) / price) * 100
-
-     # Jika SMA20 terlalu dekat atau terlalu jauh, gunakan standar 5%
-     if risk_pct < 2 or risk_pct > 8:
-     sl_price = price * 0.95
-     risk_pct = 5.0
-
-     # Target Profit dengan Risk:Reward Ratio 1:2
-     reward_pct = risk_pct * 2
-     tp_price = price * (1 + (reward_pct / 100))
-
-     # Masukkan ke dalam hasil
-     results.append({
-    "Ticker": ticker.replace(".JK", ""),
-    "Price": int(price),
-    "RSI": round(rsi, 2),
-    "Vol Ratio": round(vol_ratio, 2),
-    "SMA20": int(sma20),
-    "Stop Loss (SL)": int(sl_price),
-    "Target Profit (TP)": int(tp_price),
-    "Risk:Reward": f"1:2",
-    "Potensi Profit": f"{reward_pct:.1f}%",
-    "Market Cap (T)": round(mcap, 2)
-     })
+                    results.append({
+                        "Ticker": ticker.replace(".JK", ""),
+                        "Price": int(price),
+                        "RSI": round(rsi, 2),
+                        "Vol Ratio": round(vol_ratio, 2),
+                        "Perf 1M": f"{pct_1m:.2f}%",
+                        "MCap (T)": round(mcap, 2)
+                    })
             except:
                 continue
         
@@ -172,8 +153,7 @@ if st.button("🔍 Mulai Pemindaian Massal"):
         st.markdown("---")
         
         # Tabel Interaktif
-       
-         st.dataframe(
+        st.dataframe(
             df_res, 
             use_container_width=True,
             column_config={
@@ -182,6 +162,7 @@ if st.button("🔍 Mulai Pemindaian Massal"):
                 "Price": st.column_config.NumberColumn("Harga", format="Rp %d")
             }
         )
+        
         # Export
         csv = df_res.to_csv(index=False).encode('utf-8')
         st.download_button("📥 Export Hasil ke CSV", csv, "idx_scan_result.csv", "text/csv")

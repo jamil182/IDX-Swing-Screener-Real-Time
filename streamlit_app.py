@@ -182,20 +182,27 @@ if st.button("🔍 Jalankan Scanner"):
         data = yf.download(stocks_to_scan, period="1y", interval="1d", group_by='ticker', progress=False)
 
     for i, ticker in enumerate(stocks_to_scan):
-        try:
-            df = data[ticker].dropna()
-            if len(df) < 200: continue
+        # --- LOGIKA FILTER YANG LEBIH STABIL ---
+       # Gunakan .get() untuk menghindari KeyError jika kolom tidak ada
+    try:
+    df["SMA20"] = ta.sma(df["Close"], length=20)
+    df["SMA200"] = ta.sma(df["Close"], length=200)
+    df["RSI"] = ta.rsi(df["Close"], length=14)
+    
+    # Isi data kosong (NaN) dengan 0 agar tidak error saat dibandingkan
+    df.fillna(0, inplace=True)
+    
+    last = df.iloc[-1]
+    price = float(last['Close'])
+    sma20 = float(last['SMA20'])
+    sma200 = float(last['SMA200'])
+    rsi = float(last['RSI'])
+    
+    # LOGIKA PENGAMAN: Jika SMA200 belum ada (0), gunakan SMA20 saja sebagai patokan trend
+    trend_condition = (price > sma20 > sma200) if sma200 > 0 else (price > sma20)
 
-            # Indikator
-            df["SMA20"] = ta.sma(df["Close"], length=20)
-            df["SMA200"] = ta.sma(df["Close"], length=200)
-            df["RSI"] = ta.rsi(df["Close"], length=14)
-            
-            last = df.iloc[-1]
-            price = float(last['Close'])
-            sma20 = float(last['SMA20'])
-            sma200 = float(last['SMA200'])
-            rsi = float(last['RSI'])
+    if trend_condition and rsi >= rsi_min and vol_ratio >= vol_ratio_min:
+        # Lanjutkan ke pengecekan Market Cap...
             
             # Volume & Performa
             vol_today = last['Volume']
@@ -225,7 +232,8 @@ if st.button("🔍 Jalankan Scanner"):
                     amt_to_risk = total_budget * (risk_per_trade / 100)
                     lots = int((amt_to_risk / (price - sl_price)) // 100) if (price - sl_price) > 0 else 0
                     total_buy = lots * 100 * price
-
+                    # Hapus setelah berhasil
+                    # st.write(f"Testing {ticker}: RSI {rsi:.1f}, Vol {vol_ratio:.2f}, Trend: {price > sma20}")
                     results.append({
                         "Ticker": ticker.replace(".JK", ""),
                         "Price": int(price),

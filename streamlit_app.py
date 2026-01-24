@@ -172,15 +172,7 @@ results.append({
         st.markdown("---")
         
         # Tabel Interaktif
-        st.dataframe(
-            df_res, 
-            use_container_width=True,
-            column_config={
-                "Perf 1M": st.column_config.TextColumn("Performa 1 bln"),
-                "RSI": st.column_config.ProgressColumn("Momentum RSI", min_value=0, max_value=100, format="%.2f"),
-                "Price": st.column_config.NumberColumn("Harga", format="Rp %d")
-            }
-        )
+       
         st.dataframe(
             df_res, 
             use_container_width=True,

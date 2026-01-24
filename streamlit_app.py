@@ -26,7 +26,7 @@ with st.expander("ℹ️ Cara Penggunaan & Strategi"):
     2. **Momentum:** Gunakan RSI > 50 untuk mencari saham yang sedang 'panas'.
     3. **Volume:** Volume Ratio > 2 menandakan adanya akumulasi atau minat besar di hari ini dibanding rata-rata 20 hari.
     4. 5% - 10%: Mencari saham yang mulai uptrend.--> 15%: Mencari saham yang sedang dalam fase super-growth.
-    5. Safe Swing/Blue&emsp;&emsp;&emsp;&emsp;&ensp;:Min RSI (14): 50 ✔&nbsp;&nbsp;&nbsp;Min Volume Today: 1.2 ✔ Min Market Cap: 50 T.&ensp;&ensp;&ensp;✔ Min % Change 1 Bulan:&ensp;> 3%
+    5. Safe Swing/Blue&emsp;&emsp;&emsp;&emsp;&ensp;:Min RSI (14): 50 ✔&nbsp;&nbsp;&nbsp;Min Volume Today: 1.2 ✔&ensp;Min Market Cap: 50 T.&ensp;&ensp;&ensp;✔ Min % Change 1 Bulan:&ensp;> 3%
     6. Aggressive Swing/Mid Cap : Min RSI (14): 60 ✔&ensp;Min Volume Today: 2.00 ✔&ensp;Min Market Cap: 2 T.&ensp;&ensp;&ensp;✔ Min % Change 1 Bulan:&ensp;> 10%
     7. Fast Trade/Scalping&emsp;&emsp;&emsp;: Min RSI (14): 70 ✔&ensp;Min Volume Today: 3.00 ✔ Min Market Cap: Bebas. ✔ Min % Change 1 Bulan:&ensp;> 15%
     """)

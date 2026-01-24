@@ -82,17 +82,17 @@ if st.button("🔍 Mulai Pemindaian Massal"):
 
         for ticker in batch:
             try:
-                # Mengambil DataFrame untuk satu ticker
-                if total_len == 1: # Handle yfinance return format
+                # 1. Ambil data per ticker
+                if total_len == 1:
                     df = data
                 else:
                     df = data[ticker]
                 
                 df = df.dropna(subset=['Close'])
-                
-                if len(df) < 200: continue
+                if len(df) < 200: 
+                    continue
 
-                # Kalkulasi Indikator
+                # 2. Hitung Indikator
                 df["SMA20"] = ta.sma(df["Close"], length=20)
                 df["SMA200"] = ta.sma(df["Close"], length=200)
                 df["RSI"] = ta.rsi(df["Close"], length=14)
@@ -100,37 +100,54 @@ if st.button("🔍 Mulai Pemindaian Massal"):
                 last = df.iloc[-1]
                 prev_1m = df.iloc[-21] if len(df) > 21 else df.iloc[0]
                 
-                # Data Points
-                price = last['Close']
-                sma20 = last['SMA20']
-                sma200 = last['SMA200']
-                rsi = last['RSI']
-                vol_today = last['Volume']
-                avg_vol = df['Volume'].tail(20).mean()
+                # 3. Ekstrak Nilai Terakhir
+                price = float(last['Close'])
+                sma20 = float(last['SMA20'])
+                sma200 = float(last['SMA200'])
+                rsi = float(last['RSI'])
+                vol_today = float(last['Volume'])
+                avg_vol = float(df['Volume'].tail(20).mean())
                 vol_ratio = vol_today / avg_vol if avg_vol > 0 else 0
                 pct_1m = ((price - prev_1m['Close']) / prev_1m['Close']) * 100
 
-                # Info Market Cap (Cache info untuk efisiensi)
-                # Note: Info tetap harus dipanggil per ticker
-                t_info = yf.Ticker(ticker).info
-                mcap = t_info.get('marketCap', 0) / 1e12
-
-                # --- FILTER LOGIC ---
-                if (price > sma20 > sma200 and 
-                    rsi >= rsi_min and 
-                    vol_ratio >= vol_ratio_min and
-                    mcap >= mcap_min and
-                    pct_1m >= pct_1m_min):
+                # 4. Filter Dasar (Uptrend & Momentum)
+                if (price > sma20 > sma200 and rsi >= rsi_min and vol_ratio >= vol_ratio_min):
                     
-                    results.append({
-                        "Ticker": ticker.replace(".JK", ""),
-                        "Price": int(price),
-                        "RSI": round(rsi, 2),
-                        "Vol Ratio": round(vol_ratio, 2),
-                        "Perf 1M": f"{pct_1m:.2f}%",
-                        "MCap (T)": round(mcap, 2)
-                    })
-            except:
+                    # 5. Ambil Fundamental Data (Market Cap)
+                    t_obj = yf.Ticker(ticker)
+                    mcap = t_obj.info.get('marketCap', 0) / 1e12
+                    
+                    if mcap >= mcap_min and pct_1m >= pct_1m_min:
+                        
+                        # --- LOGIKA RISK MANAGEMENT (Indentasi Diperbaiki) ---
+                        # Stop Loss: 2% di bawah SMA20
+                        sl_price = sma20 * 0.98  
+                        risk_pct = ((price - sl_price) / price) * 100
+
+                        # Proteksi jika SMA20 terlalu dekat/jauh, gunakan default 5%
+                        if risk_pct < 2 or risk_pct > 8:
+                            sl_price = price * 0.95
+                            risk_pct = 5.0
+
+                        # Target Profit: Risk Reward Ratio 1:2
+                        reward_pct = risk_pct * 2
+                        tp_price = price * (1 + (reward_pct / 100))
+
+                        # 6. Masukkan ke Hasil Final
+                        results.append({
+                            "Ticker": ticker.replace(".JK", ""),
+                            "Price": int(price),
+                            "RSI": round(rsi, 2),
+                            "Vol Ratio": round(vol_ratio, 2),
+                            "SMA20": int(sma20),
+                            "Stop Loss (SL)": int(sl_price),
+                            "Target Profit (TP)": int(tp_price),
+                            "Risk:Reward": "1:2",
+                            "Potensi Profit": f"{reward_pct:.1f}%",
+                            "Market Cap (T)": round(mcap, 2)
+                        })
+            except Exception as e:
+                # Log error jika perlu: print(f"Error pada {ticker}: {e}")
                 continue
         
         progress_bar.progress((i + batch_size) / total_len if (i + batch_size) < total_len else 1.0)

@@ -3,22 +3,27 @@ import pandas as pd
 import yfinance as yf
 import pandas_ta as ta
 import time
-from datetime import datetime, timedelta
+import requests
+from datetime import datetime
 
-# --- KONFIGURASI HALAMAN ---
+# --- CONFIG ---
 st.set_page_config(page_title="IDX Pro Screener 2026", layout="wide", page_icon="📈")
 
-# Custom CSS untuk tampilan lebih profesional
-st.markdown("""
-    <style>
-    .main { background-color: #f8f9fa; }
-    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    </style>
-    """, unsafe_allow_html=True)
+# Fungsi Kirim Telegram menggunakan Secrets
+def send_telegram_msg(message):
+    try:
+        # Mengambil data dari st.secrets
+        token = st.secrets["TELEGRAM_BOT_TOKEN"]
+        chat_id = st.secrets["TELEGRAM_CHAT_ID"]
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = {"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}
+        requests.post(url, data=payload, timeout=10)
+    except Exception as e:
+        st.error(f"Gagal kirim Telegram: {e}. Pastikan Secrets sudah di-set.")
 
-# --- HEADER ---
-st.title("🚀 IDX Swing Screener Pro v2026")
-st.caption("Advanced Momentum & Trend Scanner | Data via Yahoo Finance (Delayed)")
+# --- UI HEADER ---
+st.title("🚀 IDX Swing Pro v2026")
+st.markdown("Screener otomatis dengan **Risk & Money Management** terintegrasi.")
 
 with st.expander("⚙️ Cara Penggunaan & Strategi"):
     st.write("""
@@ -30,13 +35,21 @@ with st.expander("⚙️ Cara Penggunaan & Strategi"):
     6. ⚙️**Aggressive Swing/Mid Cap : Min RSI (14): 60 ✅&ensp;&ensp;Min Volume Today: 2.00 ✅&ensp;&ensp;Min Market Cap: 2 T.&ensp;&ensp;&ensp;✅&ensp;&ensp;Min % Change 1 Bulan:&ensp;> 10%**
     7. ⚙️**Fast Trade/Scalping&emsp;&emsp;&emsp;: Min RSI (14): 70 ✅&ensp;&ensp;Min Volume Today: 3.00 ✅&ensp;&ensp;Min Market Cap: Bebas. ✅&ensp;&ensp;Min % Change 1 Bulan:&ensp;> 15%**
     """)
+	
+# --- SIDEBAR ---
+st.sidebar.header("🔧 Parameter Filter")
+rsi_min = st.sidebar.slider("Min RSI (14)", 0, 100, 55)
+vol_ratio_min = st.sidebar.slider("Min Vol Ratio", 0.0, 5.0, 1.5, 0.1)
+mcap_min = st.sidebar.number_input("Min Market Cap (Triliun)", 0.0, 1000.0, 1.0)
+pct_1m_min = st.sidebar.slider("Min % 1 Bulan", -20, 100, 5)
 
-# --- SIDEBAR: INPUT & FILTER ---
-st.sidebar.header("🛠️ Parameter Scan")
+st.sidebar.divider()
+st.sidebar.header("💰 Money Management")
+total_budget = st.sidebar.number_input("Total Modal (Rp)", value=10000000, step=1000000)
+risk_per_trade = st.sidebar.slider("Resiko per Trade (%)", 0.1, 5.0, 1.0)
+use_telegram = st.sidebar.toggle("Kirim ke Telegram setelah Scan", value=True)
 
-uploaded_file = st.sidebar.file_uploader("Upload Excel IDX (Kolom B: Kode)", type=["xlsx"])
-
-# Default list (Contoh singkat, bisa ditambah)
+# List Saham Default (Bisa diperbanyak)
 default_stocks = ["AADI.JK", "AALI.JK", "ABBA.JK", "ABDA.JK", "ABMM.JK", "ACES.JK", "ACRO.JK", "ACST.JK",
     "ADCP.JK", "ADES.JK", "ADHI.JK", "ADMF.JK", "ADMG.JK", "ADMR.JK", "ADRO.JK", "AEGS.JK",
     "AGAR.JK", "AGII.JK", "AGRO.JK", "AGRS.JK", "AHAP.JK", "AIMS.JK", "AISA.JK", "AKKU.JK",
@@ -157,186 +170,92 @@ default_stocks = ["AADI.JK", "AALI.JK", "ABBA.JK", "ABDA.JK", "ABMM.JK", "ACES.J
     "WINE.JK", "WINR.JK", "WINS.JK", "WIRG.JK", "WMPP.JK", "WMUU.JK", "WOMF.JK", "WOOD.JK",
     "WOWS.JK", "WSBP.JK", "WSKT.JK", "WTON.JK", "YELO.JK", "YOII.JK", "YPAS.JK", "YULE.JK",
     "YUPI.JK", "ZATA.JK", "ZBRA.JK", "ZINC.JK"]
+stocks_to_scan = [f"{s}.JK" for s in default_stocks]
 
-if uploaded_file:
-    try:
-        df_upload = pd.read_excel(uploaded_file, header=None)
-        stocks_to_scan = df_upload.iloc[1:, 1].dropna().unique().tolist()
-        st.sidebar.success(f"Loaded {len(stocks_to_scan)} saham dari Excel")
-    except:
-        st.sidebar.error("Gagal baca Excel. Gunakan default.")
-        stocks_to_scan = default_stocks
-else:
-    stocks_to_scan = default_stocks
-    st.sidebar.info(f"Mode: Default ({len(stocks_to_scan)} saham)")
-
-# Clean Ticker Format
-stocks_to_scan = [f"{str(s).strip().replace('.JK', '')}.JK" for s in stocks_to_scan]
-
-# Filter Sliders
-rsi_min = st.sidebar.slider("Min RSI (14)", 0, 100, 55)
-vol_ratio_min = st.sidebar.slider("Min Vol Ratio (vs Avg 20d)", 0.0, 5.0, 1.5, 0.1)
-mcap_min = st.sidebar.number_input("Min Market Cap (Triliun IDR)", 0.0, 2000.0, 1.0)
-pct_1m_min = st.sidebar.slider("Min % Change (1 Bulan)", -30, 100, 5)
-
-st.sidebar.divider()
-st.sidebar.header("💰 Money Management")
-total_budget = st.sidebar.number_input("Total Modal (Rp)", min_value=1000000, value=10000000, step=1000000)
-risk_per_trade = st.sidebar.slider("Risiko per Trade (%)", 0.1, 5.0, 1.0, 0.1, help="Berapa % modal yang siap hilang jika kena Stop Loss")
-
-# --- LOGIC SCANNING ---
-if st.button("🔍 Mulai Pemindaian Massal"):
+# --- SCANNING LOGIC ---
+if st.button("🔍 Jalankan Scanner"):
     results = []
-    
-    # Progress UI
     progress_bar = st.progress(0)
-    status_text = st.empty()
     
-    # Batch download untuk kecepatan tinggi (YFinance mendongkrak performa jika dipanggil sekaligus)
-    # Kita bagi per 50 saham agar tidak berat di satu request
-    batch_size = 50
-    total_len = len(stocks_to_scan)
-    
-    for i in range(0, total_len, batch_size):
-        batch = stocks_to_scan[i:i+batch_size]
-        status_text.text(f"Mengunduh Data Batch {i//batch_size + 1}...")
-        
-        # Download data sekaligus
+    # Download Massal (Batch)
+    with st.spinner('Mengunduh data pasar...'):
+        data = yf.download(stocks_to_scan, period="1y", interval="1d", group_by='ticker', progress=False)
+
+    for i, ticker in enumerate(stocks_to_scan):
         try:
-            data = yf.download(batch, period="1y", interval="1d", group_by='ticker', progress=False, threads=True)
-        except Exception as e:
-            st.error(f"Error download batch: {e}")
+            df = data[ticker].dropna()
+            if len(df) < 200: continue
+
+            # Indikator
+            df["SMA20"] = ta.sma(df["Close"], length=20)
+            df["SMA200"] = ta.sma(df["Close"], length=200)
+            df["RSI"] = ta.rsi(df["Close"], length=14)
+            
+            last = df.iloc[-1]
+            price = float(last['Close'])
+            sma20 = float(last['SMA20'])
+            sma200 = float(last['SMA200'])
+            rsi = float(last['RSI'])
+            
+            # Volume & Performa
+            vol_today = last['Volume']
+            avg_vol = df['Volume'].tail(20).mean()
+            vol_ratio = vol_today / avg_vol
+            prev_close_1m = df.iloc[-21]['Close']
+            pct_1m = ((price - prev_close_1m) / prev_close_1m) * 100
+
+            # Filter Uptrend & Momentum
+            if price > sma20 > sma200 and rsi >= rsi_min and vol_ratio >= vol_ratio_min and pct_1m >= pct_1m_min:
+                
+                # Cek Market Cap
+                t_info = yf.Ticker(ticker).info
+                mcap = t_info.get('marketCap', 0) / 1e12
+                
+                if mcap >= mcap_min:
+                    # Risk Management (1:2)
+                    sl_price = sma20 * 0.98
+                    risk_pct = ((price - sl_price) / price) * 100
+                    if risk_pct < 2 or risk_pct > 8: 
+                        sl_price = price * 0.95
+                        risk_pct = 5.0
+                    
+                    tp_price = price * (1 + (risk_pct * 2 / 100))
+                    
+                    # Position Sizing
+                    amt_to_risk = total_budget * (risk_per_trade / 100)
+                    lots = int((amt_to_risk / (price - sl_price)) // 100) if (price - sl_price) > 0 else 0
+                    total_buy = lots * 100 * price
+
+                    results.append({
+                        "Ticker": ticker.replace(".JK", ""),
+                        "Price": int(price),
+                        "RSI": round(rsi, 1),
+                        "Vol Ratio": round(vol_ratio, 2),
+                        "SL": int(sl_price),
+                        "TP": int(tp_price),
+                        "Lot": lots,
+                        "Alokasi": int(total_buy),
+                        "MCap (T)": round(mcap, 1)
+                    })
+        except:
             continue
+        progress_bar.progress((i + 1) / len(stocks_to_scan))
 
-        for ticker in batch:
-            try:
-                # 1. Ambil data per ticker
-                if total_len == 1:
-                    df = data
-                else:
-                    df = data[ticker]
-                
-                df = df.dropna(subset=['Close'])
-                if len(df) < 200: 
-                    continue
-
-                # 2. Hitung Indikator
-                df["SMA20"] = ta.sma(df["Close"], length=20)
-                df["SMA200"] = ta.sma(df["Close"], length=200)
-                df["RSI"] = ta.rsi(df["Close"], length=14)
-                
-                last = df.iloc[-1]
-                prev_1m = df.iloc[-21] if len(df) > 21 else df.iloc[0]
-                
-                # 3. Ekstrak Nilai Terakhir
-                price = float(last['Close'])
-                sma20 = float(last['SMA20'])
-                sma200 = float(last['SMA200'])
-                rsi = float(last['RSI'])
-                vol_today = float(last['Volume'])
-                avg_vol = float(df['Volume'].tail(20).mean())
-                vol_ratio = vol_today / avg_vol if avg_vol > 0 else 0
-                pct_1m = ((price - prev_1m['Close']) / prev_1m['Close']) * 100
-
-                # 4. Filter Dasar (Uptrend & Momentum)
-                if (price > sma20 > sma200 and rsi >= rsi_min and vol_ratio >= vol_ratio_min):
-                    
-                    # 5. Ambil Fundamental Data (Market Cap)
-                    t_obj = yf.Ticker(ticker)
-                    mcap = t_obj.info.get('marketCap', 0) / 1e12
-                    
-                    if mcap >= mcap_min and pct_1m >= pct_1m_min:
-                        
-                        # --- LOGIKA RISK MANAGEMENT (Indentasi Diperbaiki) ---
-                        # Stop Loss: 2% di bawah SMA20
-                        sl_price = sma20 * 0.98  
-                        risk_pct = ((price - sl_price) / price) * 100
-
-                        # Proteksi jika SMA20 terlalu dekat/jauh, gunakan default 5%
-                        if risk_pct < 2 or risk_pct > 8:
-                            sl_price = price * 0.95
-                            risk_pct = 5.0
-
-                        # Target Profit: Risk Reward Ratio 1:2
-                        reward_pct = risk_pct * 2
-                        tp_price = price * (1 + (reward_pct / 100))
-
-                        # --- LOGIKA MONEY MANAGEMENT ---
-                        # Modal yang siap diresikokan (Misal 1% dari 10jt = 100rb)
-                        amt_to_risk = total_budget * (risk_per_trade / 100)
-                        
-                        # Berapa kerugian per lembar saham?
-                        risk_per_share = price - sl_price
-                        
-                        # Jumlah lembar yang boleh dibeli agar jika rugi, hanya kehilangan amt_to_risk
-                        if risk_per_share > 0:
-                            shares_to_buy = amt_to_risk / risk_per_share
-                            lots_to_buy = int(shares_to_buy // 100)
-                        else:
-                            lots_to_buy = 0
-
-                        # Validasi: Jangan sampai total pembelian melebihi budget modal
-                        total_cost = lots_to_buy * 100 * price
-                        if total_cost > total_budget:
-                            lots_to_buy = int(total_budget // (100 * price))
-                            total_cost = lots_to_buy * 100 * price
-
-                        # 6. Masukkan ke Hasil Final
-                        results.append({
-                            "Ticker": ticker.replace(".JK", ""),
-                            "Price": int(price),
-                            "RSI": round(rsi, 2),
-                            "Vol Ratio": round(vol_ratio, 2),
-                            "Stop Loss (SL)": int(sl_price),
-                            "Target Profit (TP)": int(tp_price),
-                            "Potensi Profit": f"{reward_pct:.1f}%",
-                            "Saran Lot": lots_to_buy,
-                            "Total Dana (Rp)": int(total_cost),
-                            "Market Cap (T)": round(mcap, 2)
-                        })
-            except Exception as e:
-                # Log error jika perlu: print(f"Error pada {ticker}: {e}")
-                continue
-        
-        progress_bar.progress((i + batch_size) / total_len if (i + batch_size) < total_len else 1.0)
-
-    status_text.empty()
-    progress_bar.empty()
-
-    # --- TAMPILKAN HASIL ---
+    # --- DISPLAY & NOTIF ---
     if results:
-        st.success(f"Ditemukan {len(results)} saham potensial!")
-        
         df_res = pd.DataFrame(results)
+        st.success(f"Ditemukan {len(results)} Saham!")
         
-        # Tampilan Grid Metrik (Top 3 Vol Ratio)
-        top_vol = df_res.sort_values("Vol Ratio", ascending=False).head(3)
-        cols = st.columns(3)
-        for idx, row in enumerate(top_vol.to_dict(orient='records')):
-            cols[idx].metric(f"🔥 High Vol: {row['Ticker']}", f"Rp{row['Price']}", f"Ratio: {row['Vol Ratio']}")
-
-        st.markdown("---")
+        # Tabel
+        st.dataframe(df_res, use_container_width=True, hide_index=True)
         
-        # Tabel Interaktif
-        st.dataframe(
-            df_res, 
-            use_container_width=True,
-            column_config={
-                "Price": st.column_config.NumberColumn("Entry", format="Rp %d"),
-                "Stop Loss (SL)": st.column_config.NumberColumn("SL", format="Rp %d"),
-                "Target Profit (TP)": st.column_config.NumberColumn("TP", format="Rp %d"),
-                "Saran Lot": st.column_config.NumberColumn("Lot", help="Jumlah lot yang boleh dibeli berdasarkan risiko"),
-                "Total Dana (Rp)": st.column_config.NumberColumn("Alokasi Dana", format="Rp %d"),
-                "RSI": st.column_config.NumberColumn("RSI", format="%.1f")
-            }
-        )
-        
-        # Export
-        csv = df_res.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Export Hasil ke CSV", csv, "idx_scan_result.csv", "text/csv")
+        # Telegram Notif
+        if use_telegram:
+            msg = f"🚀 *IDX SIGNAL {datetime.now().strftime('%H:%M')}*\n"
+            for r in results:
+                msg += f"• *{r['Ticker']}*: Rp{r['Price']} (RSI:{r['RSI']}) | SL:{r['SL']} | TP:{r['TP']} | *Buy:{r['Lot']} Lot*\n"
+            send_telegram_msg(msg)
+            st.toast("Telegram Sent!")
     else:
-        st.warning("Tidak ada saham yang memenuhi kriteria saat ini. Coba turunkan filter.")
-
-# FOOTER
-st.markdown("---")
+        st.warning("Tidak ada saham yang memenuhi kriteria.")
 st.caption(f"© 2026 jamilstempel.com | Terakhir diupdate: {datetime.now().strftime('%Y-%m-%d %H:%M')}")

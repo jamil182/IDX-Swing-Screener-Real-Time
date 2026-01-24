@@ -179,6 +179,11 @@ vol_ratio_min = st.sidebar.slider("Min Vol Ratio (vs Avg 20d)", 0.0, 5.0, 1.5, 0
 mcap_min = st.sidebar.number_input("Min Market Cap (Triliun IDR)", 0.0, 2000.0, 1.0)
 pct_1m_min = st.sidebar.slider("Min % Change (1 Bulan)", -30, 100, 5)
 
+st.sidebar.divider()
+st.sidebar.header("💰 Money Management")
+total_budget = st.sidebar.number_input("Total Modal (Rp)", min_value=1000000, value=10000000, step=1000000)
+risk_per_trade = st.sidebar.slider("Risiko per Trade (%)", 0.1, 5.0, 1.0, 0.1, help="Berapa % modal yang siap hilang jika kena Stop Loss")
+
 # --- LOGIC SCANNING ---
 if st.button("🔍 Mulai Pemindaian Massal"):
     results = []
@@ -256,17 +261,37 @@ if st.button("🔍 Mulai Pemindaian Massal"):
                         reward_pct = risk_pct * 2
                         tp_price = price * (1 + (reward_pct / 100))
 
+                        # --- LOGIKA MONEY MANAGEMENT ---
+                        # Modal yang siap diresikokan (Misal 1% dari 10jt = 100rb)
+                        amt_to_risk = total_budget * (risk_per_trade / 100)
+                        
+                        # Berapa kerugian per lembar saham?
+                        risk_per_share = price - sl_price
+                        
+                        # Jumlah lembar yang boleh dibeli agar jika rugi, hanya kehilangan amt_to_risk
+                        if risk_per_share > 0:
+                            shares_to_buy = amt_to_risk / risk_per_share
+                            lots_to_buy = int(shares_to_buy // 100)
+                        else:
+                            lots_to_buy = 0
+
+                        # Validasi: Jangan sampai total pembelian melebihi budget modal
+                        total_cost = lots_to_buy * 100 * price
+                        if total_cost > total_budget:
+                            lots_to_buy = int(total_budget // (100 * price))
+                            total_cost = lots_to_buy * 100 * price
+
                         # 6. Masukkan ke Hasil Final
                         results.append({
                             "Ticker": ticker.replace(".JK", ""),
                             "Price": int(price),
                             "RSI": round(rsi, 2),
                             "Vol Ratio": round(vol_ratio, 2),
-                            "SMA20": int(sma20),
                             "Stop Loss (SL)": int(sl_price),
                             "Target Profit (TP)": int(tp_price),
-                            "Risk:Reward": "1:2",
                             "Potensi Profit": f"{reward_pct:.1f}%",
+                            "Saran Lot": lots_to_buy,
+                            "Total Dana (Rp)": int(total_cost),
                             "Market Cap (T)": round(mcap, 2)
                         })
             except Exception as e:
@@ -297,12 +322,14 @@ if st.button("🔍 Mulai Pemindaian Massal"):
             df_res, 
             use_container_width=True,
             column_config={
-           "Stop Loss (SL)": st.column_config.NumberColumn("Exit (SL)", format="Rp %d", help="Jual jika harga di bawah ini"),
-           "Target Profit (TP)": st.column_config.NumberColumn("Target (TP)", format="Rp %d", help="Area ambil untung"),
-           "Potensi Profit": st.column_config.TextColumn("Potensi Untung", help="Estimasi % kenaikan"),
-           "Price": st.column_config.NumberColumn("Harga Masuk", format="Rp %d")
-          }
-         )
+                "Price": st.column_config.NumberColumn("Entry", format="Rp %d"),
+                "Stop Loss (SL)": st.column_config.NumberColumn("SL", format="Rp %d"),
+                "Target Profit (TP)": st.column_config.NumberColumn("TP", format="Rp %d"),
+                "Saran Lot": st.column_config.NumberColumn("Lot", help="Jumlah lot yang boleh dibeli berdasarkan risiko"),
+                "Total Dana (Rp)": st.column_config.NumberColumn("Alokasi Dana", format="Rp %d"),
+                "RSI": st.column_config.NumberColumn("RSI", format="%.1f")
+            }
+        )
         
         # Export
         csv = df_res.to_csv(index=False).encode('utf-8')

@@ -26,9 +26,9 @@ with st.expander("ℹ️ Cara Penggunaan & Strategi"):
     2. **Momentum:** Gunakan RSI > 50 untuk mencari saham yang sedang 'panas'.
     3. **Volume:** Volume Ratio > 2 menandakan adanya akumulasi atau minat besar di hari ini dibanding rata-rata 20 hari.
     4. **Gaya Trading:****************** RSI,** Vol Ratio,** Market Cap,** % Change 1B
-    5.   **Safe Swing (Blue Chip):*******50,******1.2x,********> 50 T,*********> 3%
-    6.   **Aggressive Swing (Mid Cap):** 60,******2.0x,********> 2 T,**********> 10%
-    7.   **Fast Trade/Scalping:**********70,******3.0x,**********Bebas,********> 15%
+    5. **Safe Swing Blue Chip:,********* 50,******1.2x,********> 50 T,*********> 3%
+    6. **Aggressive Swing Mid Cap:****** 60,******2.0x,********> 2 T,**********> 10%
+    7. **Fast Trade/Scalping:************70,******3.0x,**********Bebas,********> 15%
     """)
 
 # --- SIDEBAR: INPUT & FILTER ---

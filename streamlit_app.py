@@ -181,59 +181,68 @@ if st.button("🔍 Jalankan Scanner"):
     with st.spinner('Mengunduh data pasar...'):
         data = yf.download(stocks_to_scan, period="1y", interval="1d", group_by='ticker', progress=False)
 
+    # --- PROSES SCANNING ---
     for i, ticker in enumerate(stocks_to_scan):
-        # --- LOGIKA FILTER YANG LEBIH STABIL ---
-       # Gunakan .get() untuk menghindari KeyError jika kolom tidak ada
-    try:
-    df["SMA20"] = ta.sma(df["Close"], length=20)
-    df["SMA200"] = ta.sma(df["Close"], length=200)
-    df["RSI"] = ta.rsi(df["Close"], length=14)
-    
-    # Isi data kosong (NaN) dengan 0 agar tidak error saat dibandingkan
-    df.fillna(0, inplace=True)
-    
-    last = df.iloc[-1]
-    price = float(last['Close'])
-    sma20 = float(last['SMA20'])
-    sma200 = float(last['SMA200'])
-    rsi = float(last['RSI'])
-    
-    # LOGIKA PENGAMAN: Jika SMA200 belum ada (0), gunakan SMA20 saja sebagai patokan trend
-    trend_condition = (price > sma20 > sma200) if sma200 > 0 else (price > sma20)
-
-    if trend_condition and rsi >= rsi_min and vol_ratio >= vol_ratio_min:
-        # Lanjutkan ke pengecekan Market Cap...
+        try:
+            # 1. Ambil data dari batch download
+            df = data[ticker].copy() 
+            df.dropna(subset=['Close'], inplace=True)
             
-            # Volume & Performa
-            vol_today = last['Volume']
-            avg_vol = df['Volume'].tail(20).mean()
-            vol_ratio = vol_today / avg_vol
-            prev_close_1m = df.iloc[-21]['Close']
-            pct_1m = ((price - prev_close_1m) / prev_close_1m) * 100
+            if len(df) < 20: # Minimal data untuk SMA20
+                continue
 
-            # Filter Uptrend & Momentum
-            if price > sma20 > sma200 and rsi >= rsi_min and vol_ratio >= vol_ratio_min and pct_1m >= pct_1m_min:
+            # 2. Hitung Indikator
+            df["SMA20"] = ta.sma(df["Close"], length=20)
+            df["SMA200"] = ta.sma(df["Close"], length=200)
+            df["RSI"] = ta.rsi(df["Close"], length=14)
+            
+            # Handling data kosong agar tidak error
+            df.fillna(0, inplace=True)
+            
+            last = df.iloc[-1]
+            price = float(last['Close'])
+            sma20 = float(last['SMA20'])
+            sma200 = float(last['SMA200'])
+            rsi = float(last['RSI'])
+            
+            # Volume Ratio
+            vol_today = float(last['Volume'])
+            avg_vol = float(df['Volume'].tail(20).mean())
+            vol_ratio = vol_today / avg_vol if avg_vol > 0 else 0
+            
+            # Performa 1 Bulan
+            prev_1m = df.iloc[-21]['Close'] if len(df) >= 21 else df.iloc[0]['Close']
+            pct_1m = ((price - prev_1m) / prev_1m) * 100
+
+            # --- LOGIKA FILTER RELAXED (Agar Hasil Muncul) ---
+            # Jika SMA200 tidak ada (saham baru), cukup pastikan Price > SMA20
+            if sma200 > 0:
+                is_uptrend = (price > sma20 > sma200)
+            else:
+                is_uptrend = (price > sma20)
+
+            if is_uptrend and rsi >= rsi_min and vol_ratio >= vol_ratio_min and pct_1m >= pct_1m_min:
                 
-                # Cek Market Cap
+                # 3. Ambil Info Fundamental (Market Cap)
                 t_info = yf.Ticker(ticker).info
                 mcap = t_info.get('marketCap', 0) / 1e12
                 
                 if mcap >= mcap_min:
-                    # Risk Management (1:2)
+                    # --- RISK MANAGEMENT ---
                     sl_price = sma20 * 0.98
                     risk_pct = ((price - sl_price) / price) * 100
+                    
                     if risk_pct < 2 or risk_pct > 8: 
                         sl_price = price * 0.95
                         risk_pct = 5.0
                     
                     tp_price = price * (1 + (risk_pct * 2 / 100))
                     
-                    # Position Sizing
+                    # --- MONEY MANAGEMENT ---
                     amt_to_risk = total_budget * (risk_per_trade / 100)
                     lots = int((amt_to_risk / (price - sl_price)) // 100) if (price - sl_price) > 0 else 0
                     total_buy = lots * 100 * price
-                    # Hapus setelah berhasil
-                    # st.write(f"Testing {ticker}: RSI {rsi:.1f}, Vol {vol_ratio:.2f}, Trend: {price > sma20}")
+
                     results.append({
                         "Ticker": ticker.replace(".JK", ""),
                         "Price": int(price),
@@ -242,11 +251,14 @@ if st.button("🔍 Jalankan Scanner"):
                         "SL": int(sl_price),
                         "TP": int(tp_price),
                         "Lot": lots,
-                        "Alokasi": int(total_buy),
+                        "Alokasi": f"Rp {int(total_buy):,}",
                         "MCap (T)": round(mcap, 1)
                     })
-        except:
+        except Exception as e:
+            # Mengabaikan error kecil pada satu ticker agar scan tetap jalan
             continue
+            
+        # Update progress bar
         progress_bar.progress((i + 1) / len(stocks_to_scan))
 
     # --- DISPLAY & NOTIF ---

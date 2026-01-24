@@ -123,21 +123,21 @@ if st.button("🔍 Mulai Pemindaian Massal"):
                     pct_1m >= pct_1m_min):
                     
                     # --- LOGIKA RISK MANAGEMENT ---
-# Stop Loss di SMA20 atau maksimal -5% dari harga sekarang
-sl_price = sma20 * 0.98  # Memberi 'napas' 2% di bawah garis SMA20
-risk_pct = ((price - sl_price) / price) * 100
+                    # Stop Loss di SMA20 atau maksimal -5% dari harga sekarang
+     sl_price = sma20 * 0.98  # Memberi 'napas' 2% di bawah garis SMA20
+     risk_pct = ((price - sl_price) / price) * 100
 
-# Jika SMA20 terlalu dekat atau terlalu jauh, gunakan standar 5%
-if risk_pct < 2 or risk_pct > 8:
-    sl_price = price * 0.95
-    risk_pct = 5.0
+     # Jika SMA20 terlalu dekat atau terlalu jauh, gunakan standar 5%
+     if risk_pct < 2 or risk_pct > 8:
+     sl_price = price * 0.95
+     risk_pct = 5.0
 
-# Target Profit dengan Risk:Reward Ratio 1:2
-reward_pct = risk_pct * 2
-tp_price = price * (1 + (reward_pct / 100))
+     # Target Profit dengan Risk:Reward Ratio 1:2
+     reward_pct = risk_pct * 2
+     tp_price = price * (1 + (reward_pct / 100))
 
-# Masukkan ke dalam hasil
-results.append({
+     # Masukkan ke dalam hasil
+     results.append({
     "Ticker": ticker.replace(".JK", ""),
     "Price": int(price),
     "RSI": round(rsi, 2),
@@ -148,7 +148,7 @@ results.append({
     "Risk:Reward": f"1:2",
     "Potensi Profit": f"{reward_pct:.1f}%",
     "Market Cap (T)": round(mcap, 2)
-})
+     })
             except:
                 continue
         

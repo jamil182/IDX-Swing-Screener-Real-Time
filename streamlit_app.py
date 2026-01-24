@@ -45,7 +45,7 @@ st.sidebar.header("🛠️ Parameter Scan")
 uploaded_file = st.sidebar.file_uploader("Upload Excel IDX (Kolom B: Kode)", type=["xlsx"])
 
 # Filter Sliders
-rsi_min = st.sidebar.slider("Min RSI (14)", 0, 100, 35)
+rsi_min = st.sidebar.slider("Min RSI (14)", 0, 100, 53)
 vol_ratio_min = st.sidebar.slider("Min Vol Ratio", 0.0, 5.0, 2.0, 0.1)
 mcap_min = st.sidebar.number_input("Min Market Cap (Triliun IDR)", 0.0, 2000.0, 2.0)
 pct_1m_min = st.sidebar.slider("Min % Change (1 Bulan)", -30, 100, 12)

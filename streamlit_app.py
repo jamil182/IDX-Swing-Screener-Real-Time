@@ -25,10 +25,10 @@ with st.expander("ℹ️ Cara Penggunaan & Strategi"):
     1. **Trend Wajib:** Sistem secara otomatis memfilter saham yang berada di atas SMA 200 (Major Trend) dan SMA 20 (Minor Trend).
     2. **Momentum:** Gunakan RSI > 50 untuk mencari saham yang sedang 'panas'.
     3. **Volume:** Volume Ratio > 2 menandakan adanya akumulasi atau minat besar di hari ini dibanding rata-rata 20 hari.
-    4. **Gaya Trading:******************RSI,** Vol Ratio,** Market Cap,** % Change 1B
-    5. **Safe Swing Blue Chip:,*********50,******1.2x,********> 50 T,*********> 3%
-    6. **Aggressive Swing Mid Cap:******60,******2.0x,********> 2 T,**********> 10%
-    7. **Fast Trade/Scalping:***********70,******3.0x,*********Bebas,*********> 15%
+    4. 5% - 10%: Mencari saham yang mulai uptrend.--> 15%: Mencari saham yang sedang dalam fase super-growth.
+    5. Safe Swing/Blue Chip:<br> Min RSI (14): 50 ✔ Min Volume Today: 1.2 ✔ Min Market Cap: 50 T. ✔ Min % Change 1 Bulan: > 3%
+    6. Aggressive Swing/Mid Cap: Min RSI (14): 60 ✔ Min Volume Today: 2.00 ✔ Min Market Cap: 2 T. ✔ Min % Change 1 Bulan: > 10%
+    7. Fast Trade/Scalping: Min RSI (14): 70 ✔ Min Volume Today: 3.00 ✔ Min Market Cap: Bebas. ✔ Min % Change 1 Bulan: > 15%
     """)
 
 # --- SIDEBAR: INPUT & FILTER ---
